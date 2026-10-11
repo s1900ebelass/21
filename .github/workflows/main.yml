@@ -1,0 +1,30 @@
+name: Debian XFCE Webtop with Tailscale
+
+on:
+workflow_dispatch:
+push:
+branches:
+- main
+
+jobs:
+start-desktop:
+runs-on: self-hosted
+steps:
+- name: Checkout repository
+uses: actions/checkout@v4
+
+```
+  - name: Check Docker
+    run: docker --version
+
+  - name: Start Debian XFCE Webtop
+    run: |
+      docker compose up -d
+      docker compose ps
+
+  - name: Enable Tailscale HTTPS access
+    run: |
+      sudo tailscale status
+      sudo tailscale serve --bg 6080
+      sudo tailscale serve status
+```
