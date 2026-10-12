@@ -1,4 +1,4 @@
-name: Linux Desktop RDP (Cloudflare Tunnel)
+name: Linux Desktop RDP (DuckDNS + Localtonet)
 
 on:
   workflow_dispatch:
@@ -48,20 +48,34 @@ jobs:
           EOF
           docker compose up -d
 
-      # 4. Jalankan Cloudflare Tunnel via Docker Container
-      - name: Run Cloudflare Tunnel
+      # 4. Update IP DuckDNS ke Runner GitHub
+      - name: Update DuckDNS IP
         run: |
-          docker run -d --network="host" cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJhIjoiNGIyYTM1MjNiNGQyNGM0OWI3NjVmNjNlZTQzZDMzODkiLCJ0IjoiYzY1ZDA1NjMtNTExYi00ZTUwLThlOTEtNmU3YWJiYWFjY2YwIiwicyI6Ik1qTTROekF5TWpZdE9XUm1OeTAwT1dabUxXRTNZamd0WTJVNVpUVmlObUV3WldNeCJ9
+          curl -s "https://www.duckdns.org/update?domains=desktop-k3&token=15fecc17-df96-4cb5-a0cf-e67ce0d6c529&ip="
+          echo ""
+          echo "IP DuckDNS berhasil diperbarui!"
 
-      # 5. Tampilkan Informasi Akses
+      # 5. Connect Tunnel ke Localtonet
+      - name: Run Tunnel Process
+        env:
+          LOCALTONET_TOKEN: ${{ secrets.LOCALTONET_TOKEN }}
+        run: |
+          curl -s https://localtonet.com/download/localtonet-linux-x64.zip -o localtonet.zip
+          unzip -o localtonet.zip
+          chmod +x localtonet
+          if [ -n "$LOCALTONET_TOKEN" ]; then
+            ./localtonet authtoken "$LOCALTONET_TOKEN" &
+          fi
+
+      # 6. Tampilkan Informasi Akses
       - name: Show Access Status
         run: |
           echo "=================================================="
           echo "Desktop siap diakses!"
-          echo "Silakan buka subdomain/domain Cloudflare yang telah Anda hubungkan."
+          echo "Link Tetap Anda: http://desktop-k3.duckdns.org:3000"
           echo "=================================================="
 
-      # 6. Menjaga Workflow tetap berjalan (max 6 jam per run)
+      # 7. Menjaga Workflow tetap berjalan (max 6 jam per run)
       - name: Keep Alive
         run: |
           echo "Sistem berjalan... Menjaga runner tetap aktif."
