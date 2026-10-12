@@ -48,17 +48,10 @@ jobs:
           EOF
           docker compose up -d
 
-      # 4. Install & Jalankan Cloudflare Named Tunnel
+      # 4. Jalankan Cloudflare Tunnel via Docker Container
       - name: Run Cloudflare Tunnel
-        env:
-          TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
         run: |
-          # Install cloudflared
-          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-          sudo dpkg -i cloudflared.deb
-
-          # Jalankan tunnel secara background menggunakan Token dari Cloudflare Zero Trust
-          sudo cloudflared tunnel --no-autoupdate run --token "$TUNNEL_TOKEN" &
+          docker run -d --network="host" cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJhIjoiNGIyYTM1MjNiNGQyNGM0OWI3NjVmNjNlZTQzZDMzODkiLCJ0IjoiYzY1ZDA1NjMtNTExYi00ZTUwLThlOTEtNmU3YWJiYWFjY2YwIiwicyI6Ik1qTTROekF5TWpZdE9XUm1OeTAwT1dabUxXRTNZamd0WTJVNVpUVmlObUV3WldNeCJ9
 
       # 5. Tampilkan Informasi Akses
       - name: Show Access Status
