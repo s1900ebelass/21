@@ -1,30 +1,75 @@
-name: Debian XFCE Webtop with Tailscale
+name: Linux Desktop RDP (Cloudflare Tunnel)
 
 on:
-workflow_dispatch:
-push:
-branches:
-- main
+  workflow_dispatch:
 
 jobs:
-start-desktop:
-runs-on: self-hosted
-steps:
-- name: Checkout repository
-uses: actions/checkout@v4
+  desktop:
+    runs-on: ubuntu-latest
 
-```
-  - name: Check Docker
-    run: docker --version
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  - name: Start Debian XFCE Webtop
-    run: |
-      docker compose up -d
-      docker compose ps
+      # 1. Restore/Persist data dari container agar tidak hilang saat restart
+      - name: Cache Webtop Data
+        uses: actions/cache@v4
+        with:
+          path: config_data
+          key: webtop-config-${{ github.run_id }}
+          restore-keys: |
+            webtop-config-
 
-  - name: Enable Tailscale HTTPS access
-    run: |
-      sudo tailscale status
-      sudo tailscale serve --bg 6080
-      sudo tailscale serve status
-```
+      # 2. Buat folder konfigurasi jika belum ada
+      - name: Prepare Persistence Directory
+        run: |
+          mkdir -p config_data
+
+      # 3. Jalankan Docker Compose (Webtop GUI)
+      - name: Deploy Docker Container
+        run: |
+          cat << 'EOF' > docker-compose.yml
+          services:
+            debian-desktop:
+              image: lscr.io/linuxserver/webtop:debian-xfce
+              container_name: debian_gui
+              ports:
+                - '3000:3000'
+              volumes:
+                - ./config_data:/config
+              environment:
+                - PUID=1000
+                - PGID=1000
+                - TZ=Asia/Jakarta
+              shm_size: 1gb
+              stdin_open: true
+              tty: true
+              restart: unless-stopped
+          EOF
+          docker compose up -d
+
+      # 4. Install & Jalankan Cloudflare Named Tunnel
+      - name: Run Cloudflare Tunnel
+        env:
+          TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          # Install cloudflared
+          curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared.deb
+
+          # Jalankan tunnel secara background menggunakan Token dari Cloudflare Zero Trust
+          sudo cloudflared tunnel --no-autoupdate run --token "$TUNNEL_TOKEN" &
+
+      # 5. Tampilkan Informasi Akses
+      - name: Show Access Status
+        run: |
+          echo "=================================================="
+          echo "Desktop siap diakses!"
+          echo "Silakan buka subdomain/domain Cloudflare yang telah Anda hubungkan."
+          echo "=================================================="
+
+      # 6. Menjaga Workflow tetap berjalan (max 6 jam per run)
+      - name: Keep Alive
+        run: |
+          echo "Sistem berjalan... Menjaga runner tetap aktif."
+          sleep 21600
